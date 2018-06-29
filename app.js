@@ -1,6 +1,6 @@
 'use strict'
 
-/*--------- DEPENDENCIES ----------*/
+//require
 const express = require('express');
 const app = express();
 const bodyParser = require('body-parser');
@@ -8,12 +8,14 @@ const timeStamp = require('timestamp-to-date');
 const moment = require('moment');
 const api = require('./config.js');
 const Twit = require('twit');
-
+let tweets = [];
+let test = 2;
+let messages = [];
 /*--------- CLASSES ----------*/
 
 //Friends
 class Friend {
-  constructor(rlName, userImage, scrName, IdStr) {
+  constructor(rlName, userImage, scrName,IdStr ) {
     this.rlName = rlName;
     this.userImage = userImage;
     this.scrName = scrName;
@@ -24,7 +26,7 @@ class Friend {
 
 //Tweets
 class Tweets {
-  constructor(tweetContent, retweetNum, likesNum, dateOfTweet, profileImage, scrName, retweetCount, timeCreated, userIdString) {
+  constructor(tweetContent, retweetNum, likesNum, dateOfTweet, profileImage, scrName, retweetCount, timeCreated, userIdString){
     this.tweetContent = tweetContent;
     this.retweetNum = retweetNum;
     this.likesNum = likesNum;
@@ -39,44 +41,38 @@ class Tweets {
 
 //Messages
 class Messages {
-  constructor(messageBody, messageDate, senderID) {
+  constructor(messageBody, messageDate, senderID){
     this.messageBody = messageBody;
     this.messageDate = messageDate;
     this.senderID = senderID;
   }
+
+
 }
 
-//body parser
-app.use(bodyParser.urlencoded({ extended: false }));
+app.use(bodyParser.urlencoded({extended: false}));
 
-//static page
-app.use('/static', express.static('public'));
+app.use('/static',express.static('public'));
 
-//use twit
-const T = new Twit(api);
+const T = new Twit(api)
 
-//create count for the number of tweets/followers/messages displayed to the screen
 const count = 5;
 
-//create view engine for pug
-app.set('view engine', 'pug');
-
-/*--------- HOME PAGE ----------*/
+app.set('view engine', 'pug')
 
 app.get('/', (req, res) => {
-  //get followers list
-  T.get('friends/list', { count }, function (err, data, response) {
+  //get following list
+  T.get('friends/list',{count}, function (err, data, response) {
     let friendsList = [];
-    for (let i = 0; i < count; i++) {
-      let friend = new Friend(data.users[i].name, data.users[i].profile_image_url, data.users[i].screen_name, data.users[i].id_str);
+    for (let i = 0; i < count; i++){
+      let friend = new Friend (data.users[i].name, data.users[i].profile_image_url, data.users[i].screen_name, data.users[i].id_str)
       friendsList.push(friend);
-    }
-
-    //get tweet list
-    T.get('statuses/user_timeline', { count }, function (err, data, response) {
+      }
+      //get tweet list
+      T.get('statuses/user_timeline',{count}, function (err, data, response) {
       let tweetList = [];
       for (let i = 0; i < count; i++) {
-        let tweet = new Tweets(data[i].text, data[i].retweet_count, data[i].favorite_count, data[i].created_at, data[i].user.profile_image_url, data[i].user.screen_name, data[i].user.retweet_count, data[i].created_at, data[i].user.id_str);
+        let tweet = new Tweets(data[i].text, data[i].retweet_count, data[i].favorite_count, data[i].created_at, data[i].user.profile_image_url, data[i].user.screen_name, data[i].user.retweet_count, data[i].created_at, data[i].user.id_str)
         tweetList.push(tweet);
       }
 
@@ -92,45 +88,46 @@ app.get('/', (req, res) => {
             let message = new Messages(data.events[i].message_create.message_data.text, date, data.events[i].message_create.sender_id);
             senderIDs.push(message.senderID);
             directMessages.push(message);
-          }//end of for loop
-        } else {
+          }
+
+        }else {
           for (let i = 0; i <= count; i++) {
             let rawDate = timeStamp(data.events[i].created_timestamp, 'yyyy-MM-dd HH:mm:ss');
             const date = moment(rawDate).startOf('day').fromNow();
             let message = new Messages(data.events[i].message_create.message_data.text, date, data.events[i].message_create.sender_id)
             senderIDs.push(message.senderID);
             directMessages.push(message);
-            T.get('users/show', {user_id: senderIDs[i]}, function (err, data, response) {
+            T.get('users/show', { user_id: senderIDs[i]}, function (err, data, response) {
               directMessages[i].senderImage = data.profile_image_url;
-            })//end of get sender img
+            });//end of get sender img
+          }
         }
-    }
-      //get imageList
-  for(let i = 0; i < senderIDs.length; i++){
-    for(let j = 0; j < friendsList.length; j++){
-      if(friendsList[j].IdStr === senderIDs[i]){
-        directMessages[i].senderImage = friendsList[j].userImage;
-      }
-    }//end of for loop
-  }//end of for loop
 
-  //get friends name
-for(let i = 0; i < senderIDs.length; i++){
-for(let j = 0; j < friendsList.length; j++){
-  if(friendsList[j].IdStr === senderIDs[i]){
-    directMessages[i].senderRlName = friendsList[j].rlName;
-  }
-}//end of for loop
-}//end of for loop
+        //get imageList
+        for (let i = 0; i < senderIDs.length; i++) {
+          for (let j = 0; j < friendsList.length; j++) {
+            if (friendsList[j].IdStr === senderIDs[i]) {
+              directMessages[i].senderImage = friendsList[j].userImage;
+            }
+          }//end of for loop
+        }//end of for loop
 
+        //get friends name
+        for (let i = 0; i < senderIDs.length; i++) {
+          for (let j = 0; j < friendsList.length; j++) {
+            if (friendsList[j].IdStr === senderIDs[i]) {
+              directMessages[i].senderRlName = friendsList[j].rlName;
+            }
+          }//end of for loop
+        }//end of for loop
 
-      res.render('index', {tweetList, friendsList, directMessages})
-      })//end of get messages
-    })//end fo get tweets
-  })//end of get followers
-})//home page
-const port = 3000
+        res.render('index', { tweetList, friendsList, directMessages });
+      });//end of get messages
+    });//end fo get tweets
+  });//end of get followers
+});//home page
+const port = 3000;
 
 app.listen(port, () => {
-  console.log(`The server is running on port ${port}`)
+  console.log(`The server is running on port ${port}`);
 })
