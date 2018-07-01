@@ -1,0 +1,21 @@
+ul.app--message--list
+each message in directMessages
+  if message.senderID !== tweetList[0].userIdString
+    li
+      h3
+        | Conversation with
+        a #{message.senderRlName}
+      ul.app--message--conversation
+        li.app--message
+          .app--avatar
+            img(src= message.senderImage)
+          p.app--message--text #{message.messageBody}
+          p.app--message--timestamp #{message.messageDay} - #{message.messageTime}
+  if message.senderID === tweetList[0].userIdString
+    ul.app--message--conversation
+      li.app--message--me
+        .app--avatar
+          img(src= tweetList[0].profileImage)
+        p.app--message--text
+          | #{message.messageBody}
+        p.app--message--timestamp  #{message.messageDay} - #{message.messageTime}

@@ -1,6 +1,6 @@
 'use strict'
 
-//require
+/*--------- REQUIRE ----------*/
 const express = require('express');
 const app = express();
 const bodyParser = require('body-parser');
@@ -8,14 +8,25 @@ const timeStamp = require('timestamp-to-date');
 const moment = require('moment');
 const api = require('./config.js');
 const Twit = require('twit');
-let tweets = [];
-let test = 2;
-let messages = [];
+let tweetList = [];
+let directMessages = [];
+let friendsList = [];
+let tweet = {};
+app.use(bodyParser.urlencoded({ extended: false }));
+
+app.use('/static', express.static('public'));
+
+const T = new Twit(api);
+
+const count = 5;
+
+app.set('view engine', 'pug');
+
 /*--------- CLASSES ----------*/
 
 //Friends
 class Friend {
-  constructor(rlName, userImage, scrName,IdStr ) {
+  constructor(rlName, userImage, scrName, IdStr) {
     this.rlName = rlName;
     this.userImage = userImage;
     this.scrName = scrName;
@@ -41,51 +52,48 @@ class Tweets {
 
 //Messages
 class Messages {
-  constructor(messageBody, messageDate, senderID){
+  constructor(messageBody, messageTime, senderID, messageDay) {
     this.messageBody = messageBody;
-    this.messageDate = messageDate;
+    this.messageTime = messageTime;
     this.senderID = senderID;
+    this.messageDay = messageDay;
+
   }
-
-
 }
 
-app.use(bodyParser.urlencoded({extended: false}));
 
-app.use('/static',express.static('public'));
-
-const T = new Twit(api)
-
-const count = 5;
-
-app.set('view engine', 'pug')
+/*--------- REQUESTS ----------*/
 
 app.get('/', (req, res) => {
+  /*--------- POST NEW TWEET ----------*/
+  T.post('statuses/update', { status: req.body}, function(err, data, res) {
+  });
   //get following list
-  T.get('friends/list',{count}, function (err, data, response) {
-    let friendsList = [];
-    for (let i = 0; i < count; i++){
-      let friend = new Friend (data.users[i].name, data.users[i].profile_image_url, data.users[i].screen_name, data.users[i].id_str)
+  T.get('friends/list', { count }, function (err, data, response) {
+    for (let i = 0; i < count; i++) {
+      let friend = new Friend(data.users[i].name, data.users[i].profile_image_url, data.users[i].screen_name, data.users[i].id_str)
       friendsList.push(friend);
-      }
-      //get tweet list
-      T.get('statuses/user_timeline',{count}, function (err, data, response) {
-      let tweetList = [];
+    }
+
+    //get tweet list
+    T.get('statuses/user_timeline', { count }, function (err, data, response) {
       for (let i = 0; i < count; i++) {
-        let tweet = new Tweets(data[i].text, data[i].retweet_count, data[i].favorite_count, data[i].created_at, data[i].user.profile_image_url, data[i].user.screen_name, data[i].user.retweet_count, data[i].created_at, data[i].user.id_str)
+        let rawDate = new Date(data[i].created_at).toString();
+        let date = rawDate.slice(0, 10);
+        let tweet = new Tweets(data[i].text, data[i].retweet_count, data[i].favorite_count, data[i].created_at, data[i].user.profile_image_url, data[i].user.screen_name, data[i].user.retweet_count, date, data[i].user.id_str)
         tweetList.push(tweet);
       }
 
       //get message list
       T.get(`direct_messages/events/list`, { count }, function (err, data, response) {
-        let directMessages = [];
         let senderIDs = [];
         let imageList = [];
         if (data.events.length < count) {
           for (let i = 0; i < data.events.length; i++) {
             let rawDate = timeStamp(data.events[i].created_timestamp, 'yyyy-MM-dd HH:mm:ss');
-            const date = moment(rawDate).startOf('day').fromNow();
-            let message = new Messages(data.events[i].message_create.message_data.text, date, data.events[i].message_create.sender_id);
+            const time = moment(rawDate).startOf('hour').fromNow();
+            const day = moment(rawDate).format("MMM Do YY");
+            let message = new Messages(data.events[i].message_create.message_data.text, time, data.events[i].message_create.sender_id, day);
             senderIDs.push(message.senderID);
             directMessages.push(message);
           }
@@ -97,7 +105,7 @@ app.get('/', (req, res) => {
             let message = new Messages(data.events[i].message_create.message_data.text, date, data.events[i].message_create.sender_id)
             senderIDs.push(message.senderID);
             directMessages.push(message);
-            T.get('users/show', { user_id: senderIDs[i]}, function (err, data, response) {
+            T.get('users/show', { user_id: senderIDs[i] }, function (err, data, response) {
               directMessages[i].senderImage = data.profile_image_url;
             });//end of get sender img
           }
@@ -122,12 +130,32 @@ app.get('/', (req, res) => {
         }//end of for loop
 
         res.render('index', { tweetList, friendsList, directMessages });
+
       });//end of get messages
     });//end fo get tweets
   });//end of get followers
+
 });//home page
+/*--------- POST NEW TWEET ----------*/
+
+app.post('/', (req, res) => {
+    // T.post('statuses/update', { status: req.body.tweet}, function(err, data, res) {
+    // });
+    let rawDate = new Date().toString();
+    let date = rawDate.slice(0, 10);
+    tweet = new Tweets(req.body.tweet, '', 0, date, tweetList[0].profileImage, tweetList[0].scrName, '', date, tweetList[0].userIdString);
+    console.log(tweet)
+    tweetList.pop(tweetList[4]);
+    tweetList.unshift(tweet)
+
+
+      res.render('index', { tweetList, friendsList, directMessages });
+
+});//home page
+/*--------- SERVER ----------*/
+
 const port = 3000;
 
 app.listen(port, () => {
   console.log(`The server is running on port ${port}`);
-})
+});
