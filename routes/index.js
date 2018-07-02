@@ -72,7 +72,7 @@ router.get('/', (req, res) => {
       for (let i = 0; i < count; i++) {
         let rawDate = new Date(data[i].created_at).toString();
         let date = rawDate.slice(0, 10);
-        let tweet = new Tweets(data[i].text, data[i].retweet_count, data[i].favorite_count, data[i].user.profile_image_url, data[i].user.screen_name, date, data[i].user.id_str, data[i].user.profile_banner_url)
+        let tweet = new Tweets(data[i].text, data[i].retweet_count, data[i].favorite_count, data[i].user.profile_image_url, data[i].user.screen_name, date, data[i].user.id_str, `${data[i].user.profile_banner_url}/300x100`)
         tweetList.push(tweet);
       }
 
