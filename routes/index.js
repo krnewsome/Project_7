@@ -50,7 +50,6 @@ class Messages {
     this.messageTime = messageTime;
     this.senderID = senderID;
     this.messageDay = messageDay;
-
   }
 }
 
@@ -132,16 +131,16 @@ router.get('/', (req, res) => {
 /*--------- POST NEW TWEET ----------*/
 
 router.post('/', (req, res) => {
-    // T.post('statuses/update', { status: req.body.tweet}, function(err, data, res) {
-    // });
+
+    T.post('statuses/update', { status: req.body.tweet}, function(err, data, res) {
+    });
+
     let rawDate = new Date().toString();
     let date = rawDate.slice(0, 10);
     tweet = new Tweets(req.body.tweet, '', 0, tweetList[0].profileImage, tweetList[0].scrName, date, tweetList[0].userIdString, '');
     tweetList.pop(tweetList[4]);
     tweetList.unshift(tweet);
-    console.log(tweetList);
     res.render('index', { tweetList, friendsList, directMessages });
-
   });//home page
 
 //exports
